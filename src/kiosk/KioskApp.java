@@ -124,10 +124,15 @@ public final class KioskApp {
         System.out.println("1. 학생 할인  2. 쿠폰 할인  0. 할인 없음");
         return switch (number("할인", 0, 2)) {
             case 1 -> {
-                if (number("학생 여부 (1: 예, 0: 아니요)", 0, 1) == 1) {
-                    yield new StudentDiscount(true);
+                System.out.print("시연용 학생증 번호 입력 (Enter: 건너뛰기): ");
+                String studentCardNumber = input.nextLine();
+                if (studentCardNumber.isBlank()) yield null;
+                StudentDiscount student = new StudentDiscount(studentCardNumber);
+                if (student.isVerified()) {
+                    System.out.println("학생증 번호가 확인되었습니다.");
+                    yield student;
                 }
-                System.out.println("학생 할인 적용 조건을 충족하지 않았습니다.");
+                System.out.println("등록된 시연용 학생증 번호가 없어 할인을 적용하지 않습니다.");
                 yield null;
             }
             case 2 -> {
