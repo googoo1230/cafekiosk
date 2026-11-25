@@ -3,6 +3,14 @@ package kiosk;
 import java.util.Optional;
 
 final class DiscountService {
+    Optional<DiscountPolicy> select(DiscountType type, String code) {
+        return switch (type) {
+            case NONE -> Optional.empty();
+            case STUDENT -> student(code);
+            case COUPON -> coupon(code);
+        };
+    }
+
     Optional<DiscountPolicy> student(String number) {
         StudentDiscount policy = new StudentDiscount(number);
         return policy.isVerified() ? Optional.of(policy) : Optional.empty();

@@ -10,6 +10,7 @@ public final class KioskApp {
     private final Cart cart = new Cart();
     private final OrderService orders = new OrderService();
     private final DiscountService discounts = new DiscountService();
+    private final PaymentFactory payments = new PaymentFactory();
     private final ReceiptFormatter receipts = new ReceiptFormatter();
     private KioskApp(Scanner input) { this.input = input; }
 
@@ -111,8 +112,10 @@ public final class KioskApp {
         System.out.println("1. 카드  2. 현금  0. 결제 취소");
         int choice = number("결제 수단", 0, 2);
         if (choice == 0) return;
-        PaymentMethod payment = choice == 1 ? new CardPayment()
-                : new CashPayment(number("투입 금액 (원)", 0, Integer.MAX_VALUE));
+        PaymentType type = choice == 1 ? PaymentType.CARD : PaymentType.CASH;
+        String cashInput = type == PaymentType.CASH
+                ? String.valueOf(number("투입 금액 (원)", 0, Integer.MAX_VALUE)) : "";
+        PaymentMethod payment = payments.create(type, cashInput);
         var result = orders.place(quote, payment);
         if (result.isEmpty()) {
             System.out.println("현금이 부족합니다. 장바구니에 주문을 유지합니다.");
@@ -124,28 +127,17 @@ public final class KioskApp {
 
     private DiscountPolicy selectDiscount() {
         System.out.println("1. 학생 할인  2. 쿠폰 할인  0. 할인 없음");
-        return switch (number("할인", 0, 2)) {
-            case 1 -> {
-                System.out.print("시연용 학생증 번호 입력 (Enter: 건너뛰기): ");
-                String studentCardNumber = input.nextLine();
-                if (studentCardNumber.isBlank()) yield null;
-                var student = discounts.student(studentCardNumber);
-                if (student.isPresent()) {
-                    System.out.println("학생증 번호가 확인되었습니다.");
-                    yield student.get();
-                }
-                System.out.println("등록된 시연용 학생증 번호가 없어 할인을 적용하지 않습니다.");
-                yield null;
-            }
-            case 2 -> {
-                System.out.print("쿠폰 코드 입력: ");
-                var coupon = discounts.coupon(input.nextLine());
-                if (coupon.isPresent()) yield coupon.get();
-                System.out.println("유효하지 않은 쿠폰 코드입니다.");
-                yield null;
-            }
-            default -> null;
-        };
+        int choice = number("할인", 0, 2);
+        DiscountType type = DiscountType.values()[choice];
+        if (type == DiscountType.NONE) return discounts.select(type, "").orElse(null);
+        System.out.print(type == DiscountType.STUDENT
+                ? "시연용 학생증 번호 입력 (Enter: 건너뛰기): " : "쿠폰 코드 입력: ");
+        String code = input.nextLine();
+        var policy = discounts.select(type, code);
+        if (policy.isEmpty() && !code.isBlank()) {
+            System.out.println("등록된 할인 정보가 없어 할인을 적용하지 않습니다.");
+        }
+        return policy.orElse(null);
     }
 
     private void printReceipt(Order order) {

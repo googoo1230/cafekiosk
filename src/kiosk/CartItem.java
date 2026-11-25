@@ -1,11 +1,10 @@
 package kiosk;
 
-import java.util.ArrayList;
 import java.util.List;
 
 record CartItem(MenuItem product, List<Option> options, int quantity) {
     CartItem {
-        options = List.copyOf(options);
+        options = product.validateOptions(options);
         if (quantity < 1 || quantity > 99) {
             throw new IllegalArgumentException("항목당 수량은 1~99개여야 합니다.");
         }

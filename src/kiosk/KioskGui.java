@@ -13,6 +13,7 @@ public final class KioskGui extends JFrame {
     private final Cart cart = new Cart();
     private final OrderService orders = new OrderService();
     private final DiscountService discounts = new DiscountService();
+    private final PaymentFactory payments = new PaymentFactory();
     private final ReceiptFormatter receipts = new ReceiptFormatter();
     private final DefaultListModel<String> cartRows = new DefaultListModel<>();
     private final JList<String> cartList = new JList<>(cartRows);
@@ -162,7 +163,7 @@ public final class KioskGui extends JFrame {
 
     private void checkout() {
         JComboBox<String> mode = new JComboBox<>(new String[]{"매장 이용", "테이크아웃"});
-        JComboBox<String> discount = new JComboBox<>(new String[]{"할인 없음", "학생 할인", "쿠폰 할인"});
+        JComboBox<DiscountType> discount = new JComboBox<>(DiscountType.values());
         JPanel form = new JPanel(new GridLayout(0, 2, 10, 8));
         form.add(new JLabel("이용 방식"));
         form.add(mode);
@@ -170,12 +171,13 @@ public final class KioskGui extends JFrame {
         form.add(discount);
         if (!confirm(form, "주문 정보")) return;
 
+        DiscountType type = (DiscountType) discount.getSelectedItem();
         DiscountPolicy policy = null;
-        if (discount.getSelectedIndex() != 0) {
-            boolean student = discount.getSelectedIndex() == 1;
+        if (type != DiscountType.NONE) {
+            boolean student = type == DiscountType.STUDENT;
             String code = JOptionPane.showInputDialog(this, student ? "시연용 학생증 번호" : "쿠폰 코드");
             if (code == null) return;
-            policy = (student ? discounts.student(code) : discounts.coupon(code)).orElse(null);
+            policy = discounts.select(type, code).orElse(null);
             if (policy == null && !confirm("등록된 번호가 없습니다. 정상가로 계속할까요?", "할인 확인")) return;
         }
         OrderMode orderMode = mode.getSelectedIndex() == 0 ? OrderMode.DINE_IN : OrderMode.TAKEOUT;
@@ -189,18 +191,18 @@ public final class KioskGui extends JFrame {
                 JOptionPane.DEFAULT_OPTION, JOptionPane.PLAIN_MESSAGE, null, methods, methods[0]);
         if (choice != 0 && choice != 1) return;
 
-        PaymentMethod method = new CardPayment();
-        if (choice == 1) {
-            String input = JOptionPane.showInputDialog(this, "투입 금액 (원)");
-            if (input == null) return;
-            try {
-                long amount = Long.parseLong(input.strip());
-                if (amount < 0) throw new NumberFormatException();
-                method = new CashPayment(amount);
-            } catch (NumberFormatException error) {
-                message("0 이상의 정수를 입력해 주세요.", "금액 확인");
-                return;
-            }
+        PaymentType paymentType = choice == 0 ? PaymentType.CARD : PaymentType.CASH;
+        String cashInput = "";
+        if (paymentType == PaymentType.CASH) {
+            cashInput = JOptionPane.showInputDialog(this, "투입 금액 (원)");
+            if (cashInput == null) return;
+        }
+        PaymentMethod method;
+        try {
+            method = payments.create(paymentType, cashInput);
+        } catch (IllegalArgumentException error) {
+            message(error.getMessage(), "금액 확인");
+            return;
         }
 
         var result = orders.place(quote, method);

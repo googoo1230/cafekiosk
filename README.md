@@ -38,6 +38,8 @@
 | `src/kiosk/DiscountService.java`, `DiscountPolicy.java`, `StudentDiscount.java`, `CouponDiscount.java` | 학생증·쿠폰 검증과 할인액 계산 |
 | `src/kiosk/PaymentMethod.java`, `CardPayment.java`, `CashPayment.java`, `PaymentResult.java` | 카드·현금 모의 결제와 결과 반환 |
 | `src/kiosk/OrderService.java`, `Order.java`, `OrderQuote.java`, `OrderMode.java` | 결제 전 금액 계산, 주문 확정, 주문번호 및 이용 방식 관리 |
+| `src/kiosk/DiscountType.java`, `PaymentType.java`, `PaymentFactory.java` | 할인 종류 표현 및 결제 수단 생성·현금 입력 검증 |
+| `tests/kiosk/OrderValidationTest.java` | 공통 주문 로직의 회귀 테스트 |
 | `src/kiosk/ReceiptFormatter.java` | 콘솔과 GUI에서 사용하는 결제 금액 및 영수증 문자열 생성 |
 | `README.md`, `.gitignore` | 프로젝트 안내 및 로컬 빌드 산출물 제외 설정 |
 
@@ -120,3 +122,27 @@ java -cp out kiosk.KioskApp
 이번 개선은 ChatGPT를 활용해 구현하고 검증했습니다. 학생 할인·현금 부족 후 쿠폰 카드 재결제 콘솔 시나리오와 공통 할인 검증, 잘못된 금액 거부, 현금 영수증 생성 테스트를 실행했습니다. 팀원의 직접 검토 및 변경 내역은 실제 수행 후 기록합니다.
 
 GUI 영수증은 HTML 수평선을 사용해 표시 영역 너비에 맞게 구분선을 표시합니다. 이번 수평선 표시 변경은 전체 소스 컴파일로 확인했으며, 수정 후 실제 화면 표시는 재확인 예정입니다.
+
+## 추가 설계 개선 및 검증
+
+| 변경 | 이유와 적용 |
+|---|---|
+| 할인 선택 공통화 | 화면에서 선택한 `DiscountType`과 입력값을 `DiscountService.select()`에 전달합니다. 정책 생성과 등록 정보 확인을 공통으로 수행합니다. |
+| 결제 생성 공통화 | `PaymentFactory.create()`가 `PaymentType`에 맞는 결제 객체를 생성하고 현금 입력을 검증합니다. 두 화면에서 결제 객체를 만드는 중복을 줄였습니다. |
+| 상품 옵션 검증 | `CartItem` 생성 시 `MenuItem.validateOptions()`를 호출합니다. 옵션 그룹 순서대로 하나씩 선택했는지 확인하고, 존재하지 않는 옵션과 잘못된 추가금을 거부합니다. 베이커리에 옵션을 추가하는 경우도 거부합니다. |
+| 상태 보호 | `OptionGroup`의 선택지는 읽기 전용 복사본으로 보관하고, `CashPayment`는 음수 현금을 거부합니다. |
+
+화면은 사용자 입력과 안내를 담당합니다. 공통 할인 서비스는 할인 정책을 반환하고, 결제 팩터리는 `PaymentMethod` 객체를 반환합니다. `OrderService`는 이 인터페이스를 통해 결제를 요청합니다.
+
+### 회귀 테스트 실행
+
+외부 테스트 라이브러리 없이 JDK 21에서 실행합니다. 기존 빌드 후 다음 명령을 실행합니다.
+
+```sh
+javac -encoding UTF-8 -cp out -d out tests/kiosk/OrderValidationTest.java
+java -cp out kiosk.OrderValidationTest
+```
+
+검증한 항목은 유효·무효 할인 정보, 옵션 누락·중복·위조·베이커리 옵션 거부, 현금 음수·문자·범위 초과 입력, 현금 부족 후 주문 유지, 성공 주문번호와 거스름돈, 카드 결제, 할인액 범위 및 주문 옵션 복사본 보호입니다. 공통 로직 테스트와 콘솔 주문 흐름은 통과했습니다. 이번 변경 후 Swing 버튼 전체 흐름은 데스크톱에서 재확인이 필요합니다.
+
+이번 변경은 ChatGPT로 구현했습니다. 정윤서·조주희의 직접 검토 기록과 발표 리허설 결과는 각자 실제 수행한 내용을 기준으로 추가합니다.
