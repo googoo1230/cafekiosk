@@ -11,11 +11,11 @@ final class ReceiptFormatter {
         StringBuilder text = new StringBuilder("[영수증] 주문번호 %03d | %s\n"
                 .formatted(order.number(), quote.mode().label()));
         String separator = "-".repeat(60);
-        text.append(separator).append("\n\n");
+        text.append(separator).append("\n\n\n");
         for (CartItem item : quote.items()) {
             text.append(item.description().replace(" = ", "=")).append('\n');
         }
-        text.append("\n").append(separator).append("\n");
+        text.append("\n\n").append(separator).append("\n\n\n");
         text.append(totals(quote)).append("\n결제 수단 ").append(order.payment().method());
         if (order.payment().change() > 0) {
             text.append("\n거스름돈 ").append(order.payment().change()).append("원");
