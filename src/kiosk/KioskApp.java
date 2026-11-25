@@ -9,6 +9,8 @@ public final class KioskApp {
     private final Scanner input;
     private final Cart cart = new Cart();
     private final OrderService orders = new OrderService();
+    private final DiscountService discounts = new DiscountService();
+    private final ReceiptFormatter receipts = new ReceiptFormatter();
     private KioskApp(Scanner input) { this.input = input; }
 
     public static void main(String[] args) {
@@ -127,18 +129,18 @@ public final class KioskApp {
                 System.out.print("시연용 학생증 번호 입력 (Enter: 건너뛰기): ");
                 String studentCardNumber = input.nextLine();
                 if (studentCardNumber.isBlank()) yield null;
-                StudentDiscount student = new StudentDiscount(studentCardNumber);
-                if (student.isVerified()) {
+                var student = discounts.student(studentCardNumber);
+                if (student.isPresent()) {
                     System.out.println("학생증 번호가 확인되었습니다.");
-                    yield student;
+                    yield student.get();
                 }
                 System.out.println("등록된 시연용 학생증 번호가 없어 할인을 적용하지 않습니다.");
                 yield null;
             }
             case 2 -> {
                 System.out.print("쿠폰 코드 입력: ");
-                CouponDiscount coupon = new CouponDiscount(input.nextLine());
-                if (coupon.isValid()) yield coupon;
+                var coupon = discounts.coupon(input.nextLine());
+                if (coupon.isPresent()) yield coupon.get();
                 System.out.println("유효하지 않은 쿠폰 코드입니다.");
                 yield null;
             }
@@ -147,21 +149,11 @@ public final class KioskApp {
     }
 
     private void printReceipt(Order order) {
-        OrderQuote quote = order.quote();
-        System.out.printf("%n[영수증] 주문번호 %03d | %s%n", order.number(), quote.mode().label());
-        for (CartItem item : quote.items()) {
-            System.out.println(item.description());
-        }
-        showTotals(quote);
-        System.out.println("결제 수단 " + order.payment().method());
-        if (order.payment().change() > 0) {
-            System.out.println("거스름돈 " + order.payment().change() + "원");
-        }
+        System.out.println("\n" + receipts.format(order));
     }
 
     private void showTotals(OrderQuote quote) {
-        System.out.printf("할인 전 %d원 | %s %d원 | 최종 결제 %d원%n",
-                quote.subtotal(), quote.discountLabel(), quote.discount(), quote.total());
+        System.out.println(receipts.totals(quote));
     }
 
     private int number(String prompt, int min, int max) {

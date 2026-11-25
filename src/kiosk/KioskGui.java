@@ -12,6 +12,8 @@ public final class KioskGui extends JFrame {
     private static final Color GREEN = new Color(33, 76, 58);
     private final Cart cart = new Cart();
     private final OrderService orders = new OrderService();
+    private final DiscountService discounts = new DiscountService();
+    private final ReceiptFormatter receipts = new ReceiptFormatter();
     private final DefaultListModel<String> cartRows = new DefaultListModel<>();
     private final JList<String> cartList = new JList<>(cartRows);
     private final JLabel total = new JLabel();
@@ -173,13 +175,7 @@ public final class KioskGui extends JFrame {
             boolean student = discount.getSelectedIndex() == 1;
             String code = JOptionPane.showInputDialog(this, student ? "시연용 학생증 번호" : "쿠폰 코드");
             if (code == null) return;
-            if (student) {
-                StudentDiscount candidate = new StudentDiscount(code);
-                if (candidate.isVerified()) policy = candidate;
-            } else {
-                CouponDiscount candidate = new CouponDiscount(code);
-                if (candidate.isValid()) policy = candidate;
-            }
+            policy = (student ? discounts.student(code) : discounts.coupon(code)).orElse(null);
             if (policy == null && !confirm("등록된 번호가 없습니다. 정상가로 계속할까요?", "할인 확인")) return;
         }
         OrderMode orderMode = mode.getSelectedIndex() == 0 ? OrderMode.DINE_IN : OrderMode.TAKEOUT;
@@ -189,7 +185,7 @@ public final class KioskGui extends JFrame {
 
     private void pay(OrderQuote quote) {
         Object[] methods = {"카드", "현금", "취소"};
-        int choice = JOptionPane.showOptionDialog(this, totals(quote), "모의 결제",
+        int choice = JOptionPane.showOptionDialog(this, receipts.totals(quote), "모의 결제",
                 JOptionPane.DEFAULT_OPTION, JOptionPane.PLAIN_MESSAGE, null, methods, methods[0]);
         if (choice != 0 && choice != 1) return;
 
@@ -216,20 +212,9 @@ public final class KioskGui extends JFrame {
         Order order = result.get();
         cart.clear();
         refreshCart();
-        StringBuilder receipt = new StringBuilder(quote.mode().label()).append('\n');
-        for (CartItem item : quote.items()) receipt.append(item.description()).append('\n');
-        receipt.append('\n').append(totals(quote)).append("\n결제 수단  ").append(order.payment().method());
-        if (order.payment().change() > 0) {
-            receipt.append("\n거스름돈  ").append(money(order.payment().change()));
-        }
-        JTextArea receiptText = new JTextArea(receipt.toString(), 12, 34);
+        JTextArea receiptText = new JTextArea(receipts.format(order), 12, 34);
         receiptText.setEditable(false);
         message(new JScrollPane(receiptText), "영수증 · 주문번호 %03d".formatted(order.number()));
-    }
-
-    private static String totals(OrderQuote quote) {
-        return "할인 전  " + money(quote.subtotal()) + "\n" + quote.discountLabel() + "  "
-                + money(quote.discount()) + "\n최종 결제  " + money(quote.total());
     }
 
     private static String money(long amount) { return "%,d원".formatted(amount); }

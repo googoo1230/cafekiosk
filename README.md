@@ -35,9 +35,10 @@
 | `src/kiosk/KioskGui.java`, `KioskApp.java` | Swing 앱과 콘솔의 실행 진입점 |
 | `src/kiosk/MenuCatalog.java`, `MenuItem.java`, `Drink.java`, `Bakery.java`, `Option*.java` | 메뉴 구성, 상품 상속 구조, 선택 가능한 옵션 및 추가금 |
 | `src/kiosk/Cart.java`, `CartItem.java` | 장바구니 항목 관리, 수량 검증 및 금액 계산 |
-| `src/kiosk/DiscountPolicy.java`, `StudentDiscount.java`, `CouponDiscount.java` | 학생증·쿠폰 검증과 할인액 계산 |
+| `src/kiosk/DiscountService.java`, `DiscountPolicy.java`, `StudentDiscount.java`, `CouponDiscount.java` | 학생증·쿠폰 검증과 할인액 계산 |
 | `src/kiosk/PaymentMethod.java`, `CardPayment.java`, `CashPayment.java`, `PaymentResult.java` | 카드·현금 모의 결제와 결과 반환 |
 | `src/kiosk/OrderService.java`, `Order.java`, `OrderQuote.java`, `OrderMode.java` | 결제 전 금액 계산, 주문 확정, 주문번호 및 이용 방식 관리 |
+| `src/kiosk/ReceiptFormatter.java` | 콘솔과 GUI에서 사용하는 결제 금액 및 영수증 문자열 생성 |
 | `README.md`, `.gitignore` | 프로젝트 안내 및 로컬 빌드 산출물 제외 설정 |
 
 ## 5. 실행 방법
@@ -76,7 +77,7 @@ java -cp out kiosk.KioskApp
 
 | 원리 | 적용 클래스와 설계 이유 |
 |---|---|
-| 은닉성 | `Cart`의 항목 목록은 `private`으로 관리하고 읽기용 복사본을 반환합니다. `CartItem`은 생성 시 수량 범위를 검증해 올바른 상품 수량을 유지합니다. |
+| 은닉성 | `Cart`의 항목 목록은 `private`으로 관리하고 읽기용 복사본을 반환합니다. `CartItem`은 생성 시 수량 범위를 검증해 올바른 상품 수량을 유지합니다. `OrderQuote`는 음수 주문 금액과 음수·주문 금액 초과 할인액을 거부합니다. |
 | 상속성 | `Drink`와 `Bakery`는 추상 클래스 `MenuItem`을 상속해 상품명과 기본 가격 관리 기능을 재사용합니다. 각 클래스는 선택 가능 옵션을 제공합니다. |
 | 다형성 | 화면은 `List<MenuItem>`의 상품에 같은 `options()` 메소드를 호출합니다. 실제 상품에 따라 음료 옵션이 표시되거나 베이커리의 빈 옵션 목록이 반환됩니다. |
 | 추상성 | `DiscountPolicy`와 `PaymentMethod`는 할인과 결제의 공통 규약을 정의합니다. `OrderService`는 이 규약으로 할인액을 구하고 결제를 요청하며, 검증과 세부 계산은 각 구현 클래스가 맡습니다. |
@@ -100,7 +101,8 @@ java -cp out kiosk.KioskApp
 | 등록·미등록·빈 학생증 번호 및 유효·무효 쿠폰 | 콘솔 통과 |
 | 현금 부족 시 주문 유지, 카드 재결제, 거스름돈 표시 | 콘솔 통과 |
 | 매장·테이크아웃 선택, 주문번호와 영수증 출력 | 콘솔 통과 |
-| Swing 데스크톱 앱 | Java 21 전체 소스 컴파일 통과. 실제 창과 버튼 조작은 데스크톱에서 확인 예정. |
+| 공통 할인 검증·영수증·금액 검증 | 등록·미등록 학생증, 유효·무효 쿠폰, 음수 주문 금액·할인액 및 초과 할인액 거부, 현금 결제 영수증과 거스름돈 검증 통과 |
+| Swing 데스크톱 앱 | Java 21 전체 소스 컴파일 통과. 이전 버전의 학생 할인·현금 부족 후 쿠폰 카드 결제·영수증 출력은 사용자 실행으로 확인했습니다. 이번 공통 처리 변경 후 GUI 버튼 동작은 재확인 예정입니다. |
 
 오류 및 예외 처리에 잘못된 메뉴 번호·수량의 재입력 안내, 빈 장바구니 결제 방지, 현금 부족 시 장바구니 유지, 미등록 학생증 번호와 잘못된 쿠폰 처리 등을 반영했습니다.
 
@@ -111,3 +113,8 @@ java -cp out kiosk.KioskApp
 | 음료 종류마다 하위 클래스를 만드는 구조 | 동작은 같고 옵션 구성이 다른 음료를 `Drink`로 구성했습니다. 상품과 추가금은 `MenuCatalog`에서 관리하고, 상품 유형의 공통 기능은 `MenuItem`으로 공유합니다. |
 | 학생 여부를 직접 선택 | `StudentDiscount`가 등록된 시연용 번호를 검증하도록 변경했습니다. 학생 할인 적용 조건과 계산을 같은 객체에서 관리합니다. |
 | 콘솔 한 종류로 시연 | Swing 진입점 `KioskGui`를 추가했습니다. 화면별 입력·출력은 각 진입점이 담당하고, 상품·장바구니·할인·결제·주문 객체는 두 화면에서 재사용합니다. |
+| 화면마다 학생증·쿠폰 검증 처리 반복 | `DiscountService`가 할인 정책 생성과 유효성 검증을 담당하고 `Optional<DiscountPolicy>`를 반환합니다. 콘솔과 GUI는 번호 입력과 결과 안내를 맡습니다. |
+| 화면마다 영수증 내용 작성 | `ReceiptFormatter`가 `Order`와 `OrderQuote`를 받아 영수증과 결제 금액 문자열을 생성합니다. 두 화면이 같은 출력 내용을 재사용합니다. |
+| 할인 정책의 계산 결과를 바로 사용 | `OrderQuote` 생성 시 주문 금액이 0 이상인지, 할인액이 0부터 주문 금액 사이인지 검사합니다. 잘못된 할인 정책이 음수 결제 금액을 만들지 못하도록 보호합니다. |
+
+이번 개선은 ChatGPT를 활용해 구현하고 검증했습니다. 학생 할인·현금 부족 후 쿠폰 카드 재결제 콘솔 시나리오와 공통 할인 검증, 잘못된 금액 거부, 현금 영수증 생성 테스트를 실행했습니다. 팀원의 직접 검토 및 변경 내역은 실제 수행 후 기록합니다.
