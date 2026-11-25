@@ -212,19 +212,21 @@ public final class KioskGui extends JFrame {
         Order order = result.get();
         cart.clear();
         refreshCart();
-        String receiptHtml = receipts.format(order)
-                .replace("&", "&amp;")
-                .replace("<", "&lt;")
-                .replace(">", "&gt;")
-                .replace("-".repeat(60), "<hr width='100%' size='1' noshade>")
-                .replace("\n", "<br>");
-        JEditorPane receiptText = new JEditorPane("text/html",
-                "<html><body style='margin:0'>" + receiptHtml + "</body></html>");
-        receiptText.putClientProperty(JEditorPane.HONOR_DISPLAY_PROPERTIES, Boolean.TRUE);
+        String receipt = receipts.format(order);
+        JTextArea receiptText = new JTextArea(receipt, 16, 50);
         receiptText.setFont(UIManager.getFont("Label.font"));
         receiptText.setEditable(false);
-        receiptText.setCaretPosition(0);
-        receiptText.setPreferredSize(new Dimension(540, 300));
+        receiptText.addComponentListener(new java.awt.event.ComponentAdapter() {
+            @Override
+            public void componentResized(java.awt.event.ComponentEvent event) {
+                FontMetrics metrics = receiptText.getFontMetrics(receiptText.getFont());
+                Insets insets = receiptText.getInsets();
+                int width = receiptText.getWidth() - insets.left - insets.right;
+                int count = Math.max(1, width / Math.max(1, metrics.charWidth('-')));
+                receiptText.setText(receipt.replace("-".repeat(60), "-".repeat(count)));
+                receiptText.setCaretPosition(0);
+            }
+        });
         message(new JScrollPane(receiptText), "영수증 · 주문번호 %03d".formatted(order.number()));
     }
 
