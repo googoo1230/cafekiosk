@@ -212,8 +212,19 @@ public final class KioskGui extends JFrame {
         Order order = result.get();
         cart.clear();
         refreshCart();
-        JTextArea receiptText = new JTextArea(receipts.format(order), 12, 34);
+        String receiptHtml = receipts.format(order)
+                .replace("&", "&amp;")
+                .replace("<", "&lt;")
+                .replace(">", "&gt;")
+                .replace("-".repeat(60), "<hr width='100%' size='1' noshade>")
+                .replace("\n", "<br>");
+        JEditorPane receiptText = new JEditorPane("text/html",
+                "<html><body style='margin:0'>" + receiptHtml + "</body></html>");
+        receiptText.putClientProperty(JEditorPane.HONOR_DISPLAY_PROPERTIES, Boolean.TRUE);
+        receiptText.setFont(UIManager.getFont("Label.font"));
         receiptText.setEditable(false);
+        receiptText.setCaretPosition(0);
+        receiptText.setPreferredSize(new Dimension(540, 300));
         message(new JScrollPane(receiptText), "영수증 · 주문번호 %03d".formatted(order.number()));
     }
 
